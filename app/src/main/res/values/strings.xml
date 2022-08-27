@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Unknown Number Fix</string>
+    <string name="description">Fix unknown number on outgoing call.</string>
+    <string name="delay_hint">delay</string>
+</resources>

@@ -1,0 +1,7 @@
+Permissions:
+* READ_PHONE_STATE
+* READ_CALL_LOG
+* WRITE_CALL_LOG
+
+It is Free Open Source Software.
+License: GPL-3
