@@ -7,6 +7,7 @@ Fix unknown number on outgoing call.
 * READ_PHONE_STATE
 * READ_CALL_LOG
 * WRITE_CALL_LOG
+* NOTIFICATION_LISTENER
 
 ## License
 
