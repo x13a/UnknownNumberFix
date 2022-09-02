@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
         prefs = Preferences(this)
         binding.apply {
             delay.editText?.setText(prefs.delay.toString())
+            remake.isChecked = prefs.isRemakeCallEntry
             toggle.isChecked = prefs.isEnabled
         }
     }
@@ -43,6 +44,9 @@ class MainActivity : AppCompatActivity() {
     private fun setup() = binding.apply {
         delay.editText?.doAfterTextChanged {
             prefs.delay = it?.toString()?.toLongOrNull() ?: return@doAfterTextChanged
+        }
+        remake.setOnCheckedChangeListener { _, isChecked ->
+            prefs.isRemakeCallEntry = isChecked
         }
         toggle.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked && !hasPermissions()) {

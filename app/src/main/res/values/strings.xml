@@ -2,4 +2,6 @@
     <string name="app_name">Unknown Number Fix</string>
     <string name="description">Fix unknown number on outgoing call.</string>
     <string name="delay_hint">delay</string>
+    <string name="remake">Remake</string>
+    <string name="remake_description">Create a new call log entry, removing an old one.</string>
 </resources>

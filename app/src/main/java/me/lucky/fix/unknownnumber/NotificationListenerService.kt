@@ -15,6 +15,21 @@ import java.util.*
 import kotlin.concurrent.timerTask
 
 class NotificationListenerService : NotificationListenerService() {
+    companion object {
+        private val REMAKE_IGNORE_FIELDS = arrayOf(
+            CallLog.Calls.NUMBER,
+            CallLog.Calls.CACHED_LOOKUP_URI,
+            CallLog.Calls.CACHED_NORMALIZED_NUMBER,
+            CallLog.Calls.CACHED_FORMATTED_NUMBER,
+            CallLog.Calls.CACHED_MATCHED_NUMBER,
+            CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.CACHED_NUMBER_LABEL,
+            CallLog.Calls.CACHED_NUMBER_TYPE,
+            CallLog.Calls.CACHED_PHOTO_ID,
+            CallLog.Calls.CACHED_PHOTO_URI,
+        )
+    }
+
     private lateinit var prefs: Preferences
     private var telephonyManager: TelephonyManager? = null
     private val phoneStateListener by lazy { Listener(WeakReference(this)) }
@@ -48,19 +63,19 @@ class NotificationListenerService : NotificationListenerService() {
     }
 
     private fun checkUnknownNumber(): Int? {
-        var cursor: Cursor? = null
+        val cursor: Cursor?
         try {
             cursor = contentResolver.query(
                 CallLog.Calls.CONTENT_URI
                     .buildUpon()
                     .appendQueryParameter(CallLog.Calls.LIMIT_PARAM_KEY, "1")
                     .build(),
-                arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.DATE),
+                arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER),
                 "${CallLog.Calls.TYPE} = ?",
                 arrayOf(CallLog.Calls.OUTGOING_TYPE.toString()),
                 CallLog.Calls.DEFAULT_SORT_ORDER,
             )
-        } catch (exc: SecurityException) {}
+        } catch (exc: SecurityException) { return null }
         var id: Int? = null
         cursor?.apply {
             if (moveToFirst()) {
@@ -73,6 +88,52 @@ class NotificationListenerService : NotificationListenerService() {
     }
 
     private fun fixUnknownNumber(id: Int, number: String) {
+        assert(number.isNotEmpty())
+        if (prefs.isRemakeCallEntry) remakeCallEntry(id, number)
+        else updateCallNumberById(id, number)
+    }
+
+    private fun remakeCallEntry(id: Int, number: String) {
+        val cursor: Cursor?
+        try {
+            cursor = contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                null,
+                "${CallLog.Calls._ID} = ?",
+                arrayOf(id.toString()),
+                null,
+            )
+        } catch (exc: SecurityException) { return }
+        val cv = ContentValues()
+        var ok = false
+        cursor?.apply {
+            if (moveToFirst()) {
+                ok = true
+                for (name in columnNames
+                    .filterNot { REMAKE_IGNORE_FIELDS.contains(it) || it.startsWith('_') })
+                {
+                    val value = cursor.getStringOrNull(getColumnIndexOrThrow(name))
+                    if (value == null) cv.putNull(name) else cv.put(name, value)
+                }
+            }
+            close()
+        }
+        if (!ok || !deleteCallById(id)) return
+        cv.put(CallLog.Calls.NUMBER, number)
+        try { contentResolver.insert(CallLog.Calls.CONTENT_URI, cv) }
+        catch (exc: SecurityException) {}
+    }
+
+    private fun deleteCallById(id: Int) =
+        try {
+            contentResolver.delete(
+                CallLog.Calls.CONTENT_URI,
+                "${CallLog.Calls._ID} = ?",
+                arrayOf(id.toString()),
+            ) > 0
+        } catch (exc: SecurityException) { false }
+
+    private fun updateCallNumberById(id: Int, number: String) =
         try {
             contentResolver.update(
                 CallLog.Calls.CONTENT_URI,
@@ -83,7 +144,6 @@ class NotificationListenerService : NotificationListenerService() {
                 arrayOf(id.toString()),
             )
         } catch (exc: SecurityException) {}
-    }
 
     @Suppress("deprecation")
     private class Listener(
